@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clicker Page</title>
+    <style>
+        .button {
+            background-color: white;
+            border: none;
+            color: black;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 5px;
+            outline: 3px solid #000000;
+        }
+        .button:hover {
+            background-color: #e5e5e58c;
+        }
+        #counter {
+            font-weight: bold;
+            color: blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clicker Page</h1>
+    <p >This is the <span style="color:red">Clicker</span> page.</p>
+    <a href="Page2.html">Go to HUB</a>
+    <p>You have <span id="counter">0</span> clicker points<span id="suffix">!</span></p>
+    <button class="button" onclick="increment(clickpower)">Click me!</button>
+    <p id = "up0" onclick="buysmallcursor()"></p>
+    <p id = "up1" onclick="buycursor()"></p>
+    <script>
+        let count = 0;
+        let clickpower = 1;
+        let counterlimit = 100;
+        let upgrades = [0,0];
+        let timesinactive = 0;
+        function increment(incrementer){
+            count = count + incrementer;
+            if (count >= counterlimit) {
+                alert("Error: Too many clicks! Integer overflow! Clicker upgraded by 1!");
+                count = 0;
+                counterlimit = counterlimit * 1.5;
+                clickpower++;
+                document.getElementById('suffix').innerText = " and "+ clickpower +" click power!";
+                if (clickpower == 2) {
+                    revealupgrade(0);
+                }
+                if (clickpower == 4) {
+                    revealupgrade(1);
+                }
+            }
+            document.getElementById('counter').innerText = count;
+        }
+        function revealupgrade(index) {
+            if (index == 0) {
+                document.getElementById('up0').innerText = "Small Cursor: 20 points. You have " + upgrades[0] + " small cursors. Small cursors give you 1 point per second. Click to buy!";
+                document.getElementById('up0').style.display = "block";
+            }
+            if (index == 1) {
+                document.getElementById('up1').innerText = "Cursor: 200 points. You have " + upgrades[1] + " cursors. Cursors give you 11 points per second. Click to buy!";
+                document.getElementById('up1').style.display = "block";
+            }
+        }
+        function buysmallcursor() {
+            if (count >= 20) {
+                increment(-20);
+                upgrades[0]++;
+                document.getElementById('up0').innerText = "Small Cursor: 20 points. You have " + upgrades[0] + " small cursors. Small cursors give you 1 point per second. Click to buy!";
+            } else {
+                alert("Error: Not enough points!");
+            }
+        }
+        function buycursor() {
+            if (count >= 200) {
+                increment(-200);
+                upgrades[1]++;
+                document.getElementById('up1').innerText = "Cursor: 200 points. You have " + upgrades[1] + " cursors. Cursors give you 11 points per second. Click to buy!";
+            } else {
+                alert("Error: Not enough points!");
+            }
+        }
+        window.onload = function() {
+            setInterval(() =>{
+                    increment(upgrades[1] * 10 + upgrades[0]);
+                }, 1000);
+        }
+        function handleVisibilityChange() {
+            if (document.visibilityState === "hidden") {
+            timesinactive++;
+            console.log("Page is hidden. Times inactive: " + timesinactive);
+            if (timesinactive === 1) {
+                alert("ur mean! ):<")
+                alert("dont swich away!")
+            } else if (timesinactive === 2) {
+                alert("i told u not to switch away!")
+                alert('one more time and there will be consequences. (:<')
+            } else if (timesinactive === 3) {
+                alert("you were warned")
+                count = -999999
+                document.getElementById('counter').innerText = count;
+                alert("look at your points...")
+                alert("you did this")
+            }
+            }
+        }
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+    </script>
+</body>
