@@ -1,6 +1,7 @@
 import os
 
 workingdir = "C:\\" 
+
 def open_file(workingdir, command):
     if os.path.isabs(command[5:].strip()):
         file = command[5:].strip()
@@ -32,28 +33,40 @@ def changedir(workingdir, command):
 
 def dir(workingdir, command):
     if len(command) == 3:
-        print("Contents of " + workingdir + ":")
-        for item in os.listdir(workingdir):
-            print(item)
+        dir_path = workingdir
     else:
-        if os.path.isabs(command[4:].strip()):
+        if command[4:].strip() == "..":
+            dir_path = os.path.dirname(workingdir)
+        elif os.path.isabs(command[4:].strip()):
             dir_path = command[4:].strip()
         else:
             dir_path = os.path.join(workingdir, command[4:].strip())
-        if os.path.exists(dir_path):
-            if not os.path.isfile(dir_path):
-                print("Contents of " + dir_path + ":")
-                for item in os.listdir(dir_path):
-                    print(item)
-            else:
-                print("The selected path is a file, not a directory.")
+    try:
+        os.listdir(dir_path)
+    except PermissionError:
+        print("Permission denied.")
+        return
+    if os.path.exists(dir_path):
+        if not os.path.isfile(dir_path):
+            print("Contents of " + dir_path + ":")
+            for item in os.listdir(dir_path):
+                print(item)
         else:
-            print("That's not a valid path.")
+            print("The selected path is a file, not a directory.")
+    else:
+        print("That's not a valid path.")
+
 
 while(True):
     command = input(workingdir + "> ")
     if command == "help":
-        print("Commands:\nhelp - show this message\nopen (path)- open the file in the default program\nend - end the program\ncd (path) - select a new path\ndir (path)* - List the content of the directory\n *optional")
+        print("Commands:" 
+        "\nhelp - show this message" 
+        "\nopen (path)- open the file in the default program" 
+        "\nend - end the program" 
+        "\ncd (path) - select a new path" 
+        "\ndir (path)* - List the content of the directory" 
+        "\n *optional")
     elif command == "end":
         break
     elif command.startswith("open "):
