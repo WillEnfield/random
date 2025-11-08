@@ -2,23 +2,16 @@ from PIL import Image
 import random
 import time
 
-start = time.perf_counter()
+width = 688
+height = 288
 
-width = 3440
-height = 1440
-
-triangle_point_1 = (random.randint(1,width),random.randint(1,height))
-triangle_point_2 = (random.randint(1,width),random.randint(1,height))
-triangle_point_3 = (random.randint(1,width),random.randint(1,height))
+triangle_count = 100
 
 def dot(a,b):
     return(a[0]*b[0]+a[1]*b[1])
 
-def get_pixel(x,y):
-    if point_in_triangle(triangle_point_1,triangle_point_2,triangle_point_3,(x,y)):
-        img.putpixel((x,y),(255,255,255))
-    else:
-        img.putpixel((x,y),(0,0,0))
+def add_tuples(a,b):
+    return(a[0]+b[0],a[1]+b[1])
 
 def point_on_right_side_of_line(a,b,p):
     dir = (a[0]-b[0],a[1]-b[1])
@@ -35,20 +28,50 @@ def point_in_triangle(a,b,c,p):
     else:
         return(False)
 
+def draw_image():
+    for triangle_i in range(triangle_count):
+        min_x = max(min(triangle_points[triangle_i][0][0],triangle_points[triangle_i][1][0],triangle_points[triangle_i][2][0],width-1),1)
+        max_x = min(max(triangle_points[triangle_i][0][0],triangle_points[triangle_i][1][0],triangle_points[triangle_i][2][0],1),width-1)
+        min_y = max(min(triangle_points[triangle_i][0][1],triangle_points[triangle_i][1][1],triangle_points[triangle_i][2][1],height)-1,1)
+        max_y = min(max(triangle_points[triangle_i][0][1],triangle_points[triangle_i][1][1],triangle_points[triangle_i][2][1],1),height-1)
+        for x in range(min_x,max_x+1):
+            for y in range(min_y,max_y):
+                if point_in_triangle(triangle_points[triangle_i][0],triangle_points[triangle_i][1],triangle_points[triangle_i][2],(x,y)):
+                    img.putpixel((x,y),triangle_colors[triangle_i])
 
-img = Image.new("RGB", (width,height), color=(0,255,0))
+triangle_points = []
+triangle_velocities = []
+triangle_colors = []
+
+for i in range(triangle_count):
+    triangle_points.append([(random.randint(int(width/2),width),random.randint(int(height/2),height)),(random.randint(int(width/2),width),random.randint(int(height/2),height)),(random.randint(int(width/2),width),random.randint(int(height/2),height))])
+    triangle_velocities.append((random.randint(-10,-1),random.randint(-10,-1)))
+    triangle_colors.append((random.randint(1,255),random.randint(1,255),random.randint(1,255)))
 
 
-for x in range(width):
-    for y in range(height):
-        get_pixel(x,y)
+for i in range(100000000):
+    img = Image.new("RGB", (width,height), color=(0,0,0))
 
-img.putpixel(triangle_point_1,(255,0,0))
-img.putpixel(triangle_point_2,(0,255,0))
-img.putpixel(triangle_point_3,(0,0,255))
+    start = time.perf_counter()
 
-img.save("image.bmp", format="bmp")
+    draw_image()
 
-end = time.perf_counter()
+    for triangle_i in range(triangle_count):
+        velocity = triangle_velocities[triangle_i]
+        reverse_x = False
+        reverse_y = False
+        for point_i in range(3):
+            triangle_points[triangle_i][point_i] = add_tuples(triangle_points[triangle_i][point_i], velocity)
 
-print(f"Image gen done in  {end - start} seconds!")
+            if triangle_points[triangle_i][point_i][0] > width or triangle_points[triangle_i][point_i][0] < 0:
+                triangle_velocities[triangle_i] = (-triangle_velocities[triangle_i][0], triangle_velocities[triangle_i][1])
+
+            if triangle_points[triangle_i][point_i][1] > height or triangle_points[triangle_i][point_i][1] < 0:
+                triangle_velocities[triangle_i] = (triangle_velocities[triangle_i][0], -triangle_velocities[triangle_i][1])
+
+
+    img.save(f"images\image{i:05d}.bmp", format="bmp")
+
+    end = time.perf_counter()
+
+    print(f"Image gen {i} done in  {end - start} seconds!")
