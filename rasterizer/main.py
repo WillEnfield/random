@@ -1,22 +1,30 @@
 from PIL import Image
+import numpy as np
+import pygame
 import random
 import time
 import math
-import objconverter
-import mp4converter
+import models
 
-width = 3440
-height = 1440
+pygame.init()
+
+width = 344
+height = 144
+
+screen = pygame.display.set_mode((width*10, height*10))
 
 print("Starting rasterizer...")
 
-depths = [ [float('inf')] * width for _ in range(height) ]
+depths = np.full((height, width), float('inf'), dtype=np.float32)
 
 def dot(a,b):
     return(a[0]*b[0]+a[1]*b[1])
 
 def add_tuples(a,b):
     return(a[0]+b[0],a[1]+b[1])
+
+def add_tuples_3d(a,b):
+    return(a[0]+b[0],a[1]+b[1],a[2]+b[2])
 
 def signed_triangle_area(a,b,p):
     dir = (a[0]-b[0],a[1]-b[1])
@@ -35,30 +43,51 @@ def point_in_triangle(a,b,c,p):
     weight_c = areaab * inv_sum
     return(in_triangle, (weight_a,weight_b,weight_c))
 
-def draw_image(fov):
+def draw_image(fov,camera_offset):
+    img_array = np.zeros((height, width, 3), dtype=np.uint8)
     triangle_points_2d = []
+    triangle_bounds = []
     for triangle in triangle_points:
         built_triangle = []
         for point in triangle:
-            built_triangle.append(point_to_screenspace(point,fov))
+            built_triangle.append(point_to_screenspace(add_tuples_3d(point,camera_offset),fov))
+
         triangle_points_2d.append([built_triangle[0],built_triangle[1],built_triangle[2]])
+
+        min_x = int(max(min(built_triangle[0][0], 
+                            built_triangle[1][0], 
+                            built_triangle[2][0], width-1), 1))
+        max_x = int(min(max(built_triangle[0][0], 
+                            built_triangle[1][0], 
+                            built_triangle[2][0], 1), width-1))
+        min_y = int(max(min(built_triangle[0][1], 
+                            built_triangle[1][1], 
+                            built_triangle[2][1], height-1), 1))
+        max_y = int(min(max(built_triangle[0][1], 
+                            built_triangle[1][1], 
+                            built_triangle[2][1], 1), height-1))
+        
+        triangle_bounds.append((min_x,max_x,min_y,max_y))
     for triangle_i in range(len(triangle_points_2d)):
-        if (triangle_points[triangle_i][0][2] > 0 or triangle_points[triangle_i][1][2] > 0 or triangle_points[triangle_i][2][2] > 0):
+        p0, p1, p2 = triangle_points[triangle_i]
+        p0_2d, p1_2d, p2_2d = triangle_points_2d[triangle_i]
+        if p0[2] > 0 or p1[2] > 0 or p2[2] > 0:
             continue
-        min_x = int(max(min(triangle_points_2d[triangle_i][0][0],triangle_points_2d[triangle_i][1][0],triangle_points_2d[triangle_i][2][0],width-1),1))
-        max_x = int(min(max(triangle_points_2d[triangle_i][0][0],triangle_points_2d[triangle_i][1][0],triangle_points_2d[triangle_i][2][0],1),width-1))
-        min_y = int(max(min(triangle_points_2d[triangle_i][0][1],triangle_points_2d[triangle_i][1][1],triangle_points_2d[triangle_i][2][1],height-1),1))
-        max_y = int(min(max(triangle_points_2d[triangle_i][0][1],triangle_points_2d[triangle_i][1][1],triangle_points_2d[triangle_i][2][1],1),height-1))
+        
+        min_x, max_x, min_y, max_y = triangle_bounds[triangle_i]
+
+        z0, z1, z2 = -p0[2], -p1[2], -p2[2]
+
         for x in range(min_x,max_x+1):
             for y in range(min_y,max_y):
                 in_triangle, depth_weights = point_in_triangle(triangle_points_2d[triangle_i][0],triangle_points_2d[triangle_i][1],triangle_points_2d[triangle_i][2],(x+0.5,y+0.5))
-                z0 = -triangle_points[triangle_i][0][2]
-                z1 = -triangle_points[triangle_i][1][2]
-                z2 = -triangle_points[triangle_i][2][2]
+                if not in_triangle:
+                    continue
                 depth = 1/max((depth_weights[0]/z0 + depth_weights[1]/z1 + depth_weights[2]/z2) - 1e-6,0.000001)
-                if in_triangle and depth <= depths[y][x]:
-                    img.putpixel((x,y),triangle_colors[triangle_i])
+                if  depth <= depths[y][x]:
+                    img_array[y][x] = triangle_colors[triangle_i]
                     depths[y][x] = depth
+    return(img_array)
 
 def point_to_screenspace(point,fov):
 
@@ -70,49 +99,87 @@ def point_to_screenspace(point,fov):
     new_point = (point[0] * pixels_per_unit + offset[0], point[1] * pixels_per_unit + offset[1])
     return(new_point)
 
-cube = objconverter.import_model("models/dragon.obj")
+def pil_to_pygame_surface(pil_image):
+    return pygame.image.fromstring(
+        pil_image.tobytes(),
+        pil_image.size,
+        pil_image.mode
+    )
 
-oringinal_triangle_points = cube.to_triangles()
+monkey = models.import_model("models/monkey.obj")
+cube = models.import_model("models/cube.obj")
+
+models = [monkey, cube]
+
+oringinal_triangle_points = monkey.to_triangles() + cube.to_triangles()
 triangle_points = [list(tri) for tri in oringinal_triangle_points]
 triangle_colors = []
 
 for i in range(len(triangle_points)):
     triangle_colors.append((random.randint(0,255),random.randint(0,255),random.randint(0,255)))
 
-def update_image(pitch,yaw,offset):
-    i_hat = (math.sin(yaw), 0, -math.cos(yaw))
-    j_hat = (math.cos(yaw)*math.sin(pitch), math.cos(pitch), math.sin(yaw)*math.sin(pitch))
-    k_hat = (math.cos(yaw)*math.cos(pitch), -math.sin(pitch), math.sin(yaw)*math.cos(pitch))
-    for triangle_i in range(len(oringinal_triangle_points)):
-        new_triangle = []
-        for point in oringinal_triangle_points[triangle_i]:
-            x = point[0]*i_hat[0] + point[1]*j_hat[0] + point[2]*k_hat[0] + offset[0]
-            y = point[0]*i_hat[1] + point[1]*j_hat[1] + point[2]*k_hat[1] + offset[1]
-            z = point[0]*i_hat[2] + point[1]*j_hat[2] + point[2]*k_hat[2] - offset[2]
-            new_triangle.append((x,y,z))
-        triangle_points[triangle_i] = new_triangle
+i = 0
 
-pitch = 0
-yaw = 0
+running = True
+performances = []
 
-for i in range(5000):
-    depths = [[float('inf')] * width for _ in range(height)]
 
-    img = Image.new("RGB", (width,height), color=(0,-2,0))
+movement_vec = (0,0,0)
+camera_offset = (0,0,0)
+
+while running:
+    i += 1
+
+    movement_vec = (0,0,0)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+
+        keys = pygame.key.get_pressed()
+
+        if keys[pygame.K_s]:
+                movement_vec = add_tuples_3d(movement_vec,(0,0,-0.1))
+        if keys[pygame.K_w]:
+                movement_vec = add_tuples_3d(movement_vec,(0,0,0.1))
+        if keys[pygame.K_a]:
+                movement_vec = add_tuples_3d(movement_vec,(-0.1,0,0))
+        if keys[pygame.K_d]:
+                movement_vec = add_tuples_3d(movement_vec,(0.1,0,0))
+        if keys[pygame.K_SPACE]:
+                movement_vec = add_tuples_3d(movement_vec,(0,-0.1,0))
+        if keys[pygame.K_LCTRL]:
+                movement_vec = add_tuples_3d(movement_vec,(0,0.1,0))
+        
+    camera_offset = add_tuples_3d(camera_offset, movement_vec)
+
+    depths = np.full((height, width), float('inf'), dtype=np.float32)
+
 
     start = time.perf_counter()
 
-    yaw += 00.05
-    pitch += 0.01
+    triangle_points = monkey.rotate(0.01*i,0).shift((0, 0, 3)).to_triangles() + cube.shift((math.sin(i/40)+3,0,math.cos(i/40)+3)).to_triangles()
 
-    update_image(pitch,yaw,(0,-1,3))
+    img_array = draw_image(90*math.pi/180,camera_offset)
 
-    draw_image(90*math.pi/180)
+    img = Image.fromarray(img_array, 'RGB')
 
-    img.save(f"images2\\image{i:04d}.bmp", format="bmp")
+    pygame_surface = pil_to_pygame_surface(img)
+    scaled_surface = pygame.transform.scale(pygame_surface, (width*10, height*10))
+    screen.blit(scaled_surface, (0, 0))
+    pygame.display.flip()
 
     end = time.perf_counter()
+    
+    performance = end - start
 
-    print(f"Image gen {i} done {end - start} seconds!")
+    performances.append(performance)
 
-mp4converter.export()
+    print(f"Image gen {i} done {performance} seconds!")
+
+
+print("Avergage performance:", sum(performances)/len(performances))
+pygame.quit()
