@@ -51,7 +51,6 @@ def draw_image(fov,camera_offset):
         built_triangle = []
         for point in triangle:
             built_triangle.append(point_to_screenspace(add_tuples_3d(point,camera_offset),fov))
-
         triangle_points_2d.append([built_triangle[0],built_triangle[1],built_triangle[2]])
 
         min_x = int(max(min(built_triangle[0][0], 
@@ -70,7 +69,6 @@ def draw_image(fov,camera_offset):
         triangle_bounds.append((min_x,max_x,min_y,max_y))
     for triangle_i in range(len(triangle_points_2d)):
         p0, p1, p2 = triangle_points[triangle_i]
-        p0_2d, p1_2d, p2_2d = triangle_points_2d[triangle_i]
         if p0[2] > 0 or p1[2] > 0 or p2[2] > 0:
             continue
         
@@ -106,7 +104,7 @@ def pil_to_pygame_surface(pil_image):
         pil_image.mode
     )
 
-monkey = models.import_model("models/monkey.obj")
+monkey = models.import_model("models/dragon.obj")
 cube = models.import_model("models/cube.obj")
 
 models = [monkey, cube]
@@ -149,9 +147,9 @@ while running:
                 movement_vec = add_tuples_3d(movement_vec,(-0.1,0,0))
         if keys[pygame.K_d]:
                 movement_vec = add_tuples_3d(movement_vec,(0.1,0,0))
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_e]:
                 movement_vec = add_tuples_3d(movement_vec,(0,-0.1,0))
-        if keys[pygame.K_LCTRL]:
+        if keys[pygame.K_q]:
                 movement_vec = add_tuples_3d(movement_vec,(0,0.1,0))
         
     camera_offset = add_tuples_3d(camera_offset, movement_vec)
@@ -161,7 +159,7 @@ while running:
 
     start = time.perf_counter()
 
-    triangle_points = monkey.rotate(0.01*i,0).shift((0, 0, 3)).to_triangles() + cube.shift((math.sin(i/40)+3,0,math.cos(i/40)+3)).to_triangles()
+    triangle_points = monkey.rotate(0,0.01*i).shift((0, 0, 3)).to_triangles() + cube.shift((math.sin(i/40)+3,0,math.cos(i/40)+3)).to_triangles()
 
     img_array = draw_image(90*math.pi/180,camera_offset)
 
