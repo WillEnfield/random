@@ -4,8 +4,8 @@ import pygame
 
 pygame.init()
 
-width = 172
-height = 72
+width = 344
+height = 144
 
 monitor_width = 3440
 monitor_height = 1440
@@ -48,12 +48,15 @@ class game_of_life_board:
             print(''.join(['█' if cell else '░' for cell in row]))
     
     def to_image(self):
-        img = Image.new('RGB', (self.width, self.height), "black")
+        img = Image.new('RGB', (self.width, self.height), (13, 2, 33))
         for y in range(self.height):
             for x in range(self.width):
                 if self.board[y, x]:
-                    img.putpixel((x, y), (255, 255, 255))
+                    img.putpixel((x, y), (194, 231, 217))
         return img
+    
+    def randomize(self, density=0.5):
+        self.board = np.random.rand(self.height, self.width) < density
 
 def pil_to_pygame_surface(pil_image):
     return pygame.image.fromstring(
@@ -74,6 +77,8 @@ iteration = 0
 
 running = True
 
+speed = 1
+
 while(True):
     for event in pygame.event.get():
         if event.type == pygame.QUIT: 
@@ -81,6 +86,28 @@ while(True):
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 running = not running
+            elif event.key == pygame.K_r:
+                random_density = input("Enter density (0.0 - 1.0): ")
+                try:
+                    random_density = float(random_density)
+                except ValueError:
+                    print("Invalid density.")
+                board.randomize(random_density)
+            elif event.key == pygame.K_c:
+                board.board = np.zeros((height, width), bool)
+            elif event.key == pygame.K_s:
+                speed = input("Enter speed: ")
+                try:
+                    speed = int(speed)
+                except ValueError:
+                    print("Invalid speed.")
+            elif event.key == pygame.K_g:
+                mouse_pixel_pos = (pygame.mouse.get_pos()[0] * width // monitor_width, pygame.mouse.get_pos()[1] * height // monitor_height)
+                board.board[mouse_pixel_pos[1], mouse_pixel_pos[0]] = True
+                board.board[mouse_pixel_pos[1] + 1, mouse_pixel_pos[0] + 1] = True
+                board.board[mouse_pixel_pos[1] + 1, mouse_pixel_pos[0] + 2] = True
+                board.board[mouse_pixel_pos[1] + 2, mouse_pixel_pos[0]] = True
+                board.board[mouse_pixel_pos[1] + 2, mouse_pixel_pos[0] + 1] = True
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 mouse_pixel_pos = (pygame.mouse.get_pos()[0] * width // monitor_width, pygame.mouse.get_pos()[1] * height // monitor_height)
@@ -91,7 +118,7 @@ while(True):
 
     if running:
         iteration += 1
-        if iteration % 10 == 0:
+        if iteration % speed == 0:
             board.update()
 
     pygame_surface = pil_to_pygame_surface(board.to_image())
